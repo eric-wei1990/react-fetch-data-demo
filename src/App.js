@@ -1,29 +1,72 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import axios from 'axios';
 
-function App() {
-  const [data, setData] = useState({ hits: [] });
+const useDataApi = (initialUrl, initialData) => {
+  const [data, setData] = useState(initialData);
+  const [url, setUrl] = useState(initialUrl);
+  const [loading, setLoading] = useState(false);
+  const [isError, setIsError] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
-      const result = await axios(
-        'https://hn.algolia.com/api/v1/search?query=redux',
-      );
+      setLoading(true);
+      setIsError(false);
 
-      setData(result.data);
+      try {
+        const result = await axios(url);
+
+        setData(result.data);
+      } catch (err) {
+        setIsError(true);
+      }
+
+      setLoading(false);
     };
 
     fetchData();
-  }, []);
+  }, [url]);
+
+  return [{ data, loading, isError }, setUrl];
+}
+
+function App() {
+  const [query, setQuery] = useState('redux');
+  const [{ data, loading, isError }, doFetch] = useDataApi(
+    'https://hn.algolia.com/api/v1/search?query=redux',
+    { hits: [] },
+  );
+
+  function onQueryChange(e) {
+    setQuery(e.target.value);
+  }
+
+  function onSearch(e) {
+    doFetch(`https://hn.algolia.com/api/v1/search?query=${query}`);
+    e.preventDefault();
+  }
 
   return (
-    <ul>
-      {data.hits.map(item => (
-        <li key={item.objectID}>
-          <a href={item.url}>{item.title}</a>
-        </li>
-      ))}
-    </ul>
+    <Fragment>
+      <form onSubmit={onSearch}>
+        <input
+          type="text"
+          value={query}
+          onChange={onQueryChange}
+        />
+        <button type="submit">Search</button>
+      </form>
+      {isError && <div>Error happens when fetching data</div>}
+      {
+        loading ? <div>Loading... ...</div> :
+          <ul>
+            {data.hits.map(item => (
+              <li key={item.objectID}>
+                <a href={item.url}>{item.title}</a>
+              </li>
+            ))}
+          </ul>
+      }
+    </Fragment>
   );
 }
 
